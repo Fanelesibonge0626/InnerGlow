@@ -1,13 +1,15 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../lib/auth';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import JournalEntry from './JournalEntry';
 import EntryForm from './EntryForm';
 import ThemeToggle from '../../components/ThemeToggle';
+import { db } from '../../lib/firebase';
+import { collection, addDoc, deleteDoc, doc, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 
 const emotions = [
   { name: 'grateful', color: 'bg-green-500', icon: 'ri-heart-3-fill' },
@@ -22,44 +24,58 @@ const emotions = [
 
 function JournalContent() {
   const { user, logout } = useAuth();
-  const [entries, setEntries] = useState([
-    {
-      id: 1,
-      title: "New Beginnings",
-      content: "Today I decided to start this journal. I've been feeling overwhelmed with everything going on in my life, and I think writing might help me process my emotions better. There's something therapeutic about putting thoughts into words.",
-      emotion: "hopeful",
-      date: "2024-01-15",
-      time: "09:30 AM"
-    },
-    {
-      id: 2,
-      title: "Grateful Moments",
-      content: "Had coffee with my sister today. We talked for hours about life, dreams, and our childhood memories. I'm so grateful to have someone who understands me without judgment. These moments remind me that I'm not alone in this journey.",
-      emotion: "grateful",
-      date: "2024-01-12",
-      time: "02:15 PM"
-    },
-    {
-      id: 3,
-      title: "Anxiety Wave",
-      content: "Work presentation tomorrow and my mind won't stop racing. I know I'm prepared, but the what-ifs keep flooding in. Taking deep breaths and reminding myself that I've handled challenges before. This too shall pass.",
-      emotion: "anxious",
-      date: "2024-01-10",
-      time: "11:45 PM"
-    }
-  ]);
+  const [entries, setEntries] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
 
-  const addEntry = (newEntry: any) => {
-    const entry = {
-      id: Date.now(),
-      ...newEntry,
-      date: new Date().toLocaleDateString(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    setEntries([entry, ...entries]);
-    setShowForm(false);
+  const addEntry = async (newEntry: any) => {
+    try {
+      const entry = {
+        ...newEntry,
+        userId: user?.id,
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        createdAt: new Date()
+      };
+      
+      await addDoc(collection(db, 'journalEntries'), entry);
+      setShowForm(false);
+    } catch (error) {
+      console.error('Error adding entry:', error);
+      alert('Failed to save journal entry. Please try again.');
+    }
   };
+
+  const deleteEntry = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'journalEntries', id));
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      alert('Failed to delete journal entry. Please try again.');
+    }
+  };
+
+  // Load entries from Firebase
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const q = query(
+      collection(db, 'journalEntries'),
+      where('userId', '==', user.id),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const entriesData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      setEntries(entriesData);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 dark:from-gray-900 dark:to-gray-800">
@@ -137,10 +153,15 @@ function JournalContent() {
         {/* Journal Entries */}
         <div className="space-y-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Your Entries</h2>
-          {entries.map((entry) => (
-            <JournalEntry key={entry.id} entry={entry} emotions={emotions} />
-          ))}
-          {entries.length === 0 && (
+          
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="w-24 h-24 bg-purple-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="ri-loader-4-line text-4xl text-purple-500 dark:text-gray-400 animate-spin"></i>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">Loading your journal...</h3>
+            </div>
+          ) : entries.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-24 h-24 bg-purple-100 dark:bg-gray-800 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i className="ri-edit-line text-4xl text-purple-500 dark:text-gray-400"></i>
@@ -148,6 +169,10 @@ function JournalContent() {
               <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">No entries yet</h3>
               <p className="text-gray-600 dark:text-gray-400">Start your healing journey by writing your first entry</p>
             </div>
+          ) : (
+            entries.map((entry) => (
+              <JournalEntry key={entry.id} entry={entry} emotions={emotions} onDelete={deleteEntry} />
+            ))
           )}
         </div>
       </div>

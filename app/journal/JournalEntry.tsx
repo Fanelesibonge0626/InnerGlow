@@ -3,7 +3,7 @@
 
 interface JournalEntryProps {
   entry: {
-    id: number;
+    id: string;
     title: string;
     content: string;
     emotion: string;
@@ -15,9 +15,10 @@ interface JournalEntryProps {
     color: string;
     icon: string;
   }>;
+  onDelete?: (id: string) => void;
 }
 
-export default function JournalEntry({ entry, emotions }: JournalEntryProps) {
+export default function JournalEntry({ entry, emotions, onDelete }: JournalEntryProps) {
   const getEmotionStyle = (emotionName: string) => {
     const emotion = emotions.find(e => e.name === emotionName);
     return emotion ? emotion.color : 'bg-gray-500';
@@ -55,7 +56,10 @@ export default function JournalEntry({ entry, emotions }: JournalEntryProps) {
         <button className="text-gray-400 hover:text-purple-500 p-2 rounded-lg hover:bg-purple-50 transition-colors cursor-pointer">
           <i className="ri-edit-line"></i>
         </button>
-        <button className="text-gray-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
+        <button 
+          onClick={() => onDelete?.(entry.id)}
+          className="text-gray-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+        >
           <i className="ri-delete-bin-line"></i>
         </button>
       </div>
