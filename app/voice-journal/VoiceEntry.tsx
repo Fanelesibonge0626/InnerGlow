@@ -1,5 +1,6 @@
 'use client';
 
+// Force new deployment - Vercel needs to pick up latest changes
 interface VoiceEntryProps {
   entry: {
     id: string;

@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../lib/auth';
 import ProtectedRoute from '../../components/ProtectedRoute';
+import ThemeToggle from '../../components/ThemeToggle';
 import EmotionChart from './EmotionChart';
 import MoodCalendar from './MoodCalendar';
 import { db } from '../../lib/firebase';
@@ -113,25 +114,26 @@ function TrackerContent() {
   }, [user?.id]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-100">
+    <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900">
       {/* Navigation */}
-      <nav className="bg-white/80 backdrop-blur-sm shadow-sm sticky top-0 z-50">
+      <nav className="bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm shadow-sm sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <Link href="/" className="flex items-center">
-              <h1 className="font-[('Pacifico')] text-2xl text-purple-600">InnerGlow</h1>
+              <h1 className="font-[('Pacifico')] text-2xl text-purple-600 dark:text-purple-400">InnerGlow</h1>
             </Link>
             <div className="flex items-center space-x-8">
-              <Link href="/journal" className="text-gray-700 hover:text-purple-600 font-medium whitespace-nowrap cursor-pointer">Journal</Link>
-              <Link href="/voice-journal" className="text-gray-700 hover:text-purple-600 font-medium whitespace-nowrap cursor-pointer">Voice Journal</Link>
-              <Link href="/tracker" className="text-purple-600 font-medium whitespace-nowrap cursor-pointer">Emotion Tracker</Link>
-              <Link href="/rituals" className="text-gray-700 hover:text-purple-600 font-medium whitespace-nowrap cursor-pointer">Daily Rituals</Link>
-              <Link href="/resources" className="text-gray-700 hover:text-purple-600 font-medium whitespace-nowrap cursor-pointer">Resources</Link>
+              <Link href="/journal" className="text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium whitespace-nowrap cursor-pointer">Journal</Link>
+              <Link href="/voice-journal" className="text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium whitespace-nowrap cursor-pointer">Voice Journal</Link>
+              <Link href="/tracker" className="text-purple-600 dark:text-purple-400 font-medium whitespace-nowrap cursor-pointer">Emotion Tracker</Link>
+              <Link href="/rituals" className="text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium whitespace-nowrap cursor-pointer">Daily Rituals</Link>
+              <Link href="/resources" className="text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium whitespace-nowrap cursor-pointer">Resources</Link>
               <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-600">Welcome, {user?.firstName}</span>
+                <ThemeToggle />
+                <span className="text-sm text-gray-600 dark:text-gray-400">Welcome, {user?.firstName}</span>
                 <button
                   onClick={logout}
-                  className="text-gray-700 hover:text-purple-600 font-medium whitespace-nowrap cursor-pointer"
+                  className="text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium whitespace-nowrap cursor-pointer"
                 >
                   <i className="ri-logout-circle-line mr-1"></i>
                   Sign Out
@@ -144,10 +146,10 @@ function TrackerContent() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-20">
         <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-800 dark:text-gray-100 mb-4">
             Your Emotional Journey
           </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+          <p className="text-lg text-gray-600 dark:text-gray-400 max-w-2xl mx-auto">
             Track your emotions over time and discover patterns in your mental wellness. 
             Understanding your emotional rhythms is a powerful step toward healing and self-awareness.
           </p>
