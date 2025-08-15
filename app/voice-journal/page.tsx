@@ -6,8 +6,9 @@ import VoiceEntry from './VoiceEntry';
 import VoiceRecorder from './VoiceRecorder';
 import { useAuth } from '../../lib/auth';
 import ThemeToggle from '../../components/ThemeToggle';
-import { db } from '../../lib/firebase';
+import { db, storage } from '../../lib/firebase';
 import { collection, addDoc, deleteDoc, doc, query, where, orderBy, onSnapshot } from 'firebase/firestore';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 const emotions = [
   { name: 'grateful', color: 'bg-green-500', icon: 'ri-heart-3-fill' },
@@ -31,6 +32,7 @@ export default function VoiceJournal() {
       console.log('Adding voice entry...');
       console.log('User:', user);
       console.log('User ID:', user?.id);
+      console.log('New entry data:', newEntry);
       
       if (!user?.id) {
         console.error('No user ID available');
@@ -38,22 +40,52 @@ export default function VoiceJournal() {
         return;
       }
 
+      if (!newEntry.audioBlob) {
+        console.error('No audio blob available');
+        alert('No audio recording available. Please record your voice entry first.');
+        return;
+      }
+
+      console.log('Uploading audio to Firebase Storage...');
+      
+      // Create a unique filename for the audio
+      const audioFileName = `voice-entries/${user.id}/${Date.now()}-${newEntry.title.replace(/[^a-zA-Z0-9]/g, '-')}.webm`;
+      const audioRef = ref(storage, audioFileName);
+      
+      // Upload the audio blob to Firebase Storage
+      const uploadResult = await uploadBytes(audioRef, newEntry.audioBlob, {
+        contentType: 'audio/webm'
+      });
+      
+      console.log('Audio uploaded successfully:', uploadResult);
+      
+      // Get the download URL
+      const audioDownloadURL = await getDownloadURL(audioRef);
+      console.log('Audio download URL:', audioDownloadURL);
+      
+      // Create the entry for Firestore (without the blob)
       const entry = {
-        ...newEntry,
+        title: newEntry.title,
+        emotion: newEntry.emotion,
+        affirmation: newEntry.affirmation,
+        duration: newEntry.duration,
+        audioFileName: audioFileName,
+        audioDownloadURL: audioDownloadURL,
         userId: user.id,
         date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         createdAt: new Date()
       };
 
-      console.log('Voice entry to save:', entry);
+      console.log('Voice entry to save to Firestore:', entry);
 
+      // Save to Firestore
       await addDoc(collection(db, 'voiceEntries'), entry);
-      console.log('Voice entry saved successfully');
+      console.log('Voice entry saved successfully to Firestore');
       setShowRecorder(false);
     } catch (error) {
       console.error('Error adding voice entry:', error);
-      alert('Failed to save voice entry. Please try again.');
+      alert(`Failed to save voice entry: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 

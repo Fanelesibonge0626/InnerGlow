@@ -5,8 +5,9 @@ interface VoiceEntryProps {
   entry: {
     id: string;
     title: string;
-    audioUrl: string;
+    audioDownloadURL?: string;
     audioBlob?: Blob;
+    audioUrl?: string;
     emotion: string;
     affirmation?: {
       text: string;
@@ -37,11 +38,11 @@ export default function VoiceEntry({ entry, emotions, onDelete }: VoiceEntryProp
   };
 
   return (
-    <div className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
+    <div className="bg-white dark:bg-gray-900 rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow duration-300">
       <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <h3 className="text-xl font-semibold text-gray-900 mb-2">{entry.title}</h3>
-          <div className="flex items-center space-x-4 text-sm text-gray-500 mb-4">
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">{entry.title}</h3>
+          <div className="flex items-center space-x-4 text-sm text-gray-500 dark:text-gray-400 mb-4">
             <span>{entry.date}</span>
             <span>{entry.time}</span>
             <div className="flex items-center space-x-2">
@@ -87,16 +88,26 @@ export default function VoiceEntry({ entry, emotions, onDelete }: VoiceEntryProp
             <i className="ri-volume-up-fill text-white text-xl"></i>
           </div>
           <div className="flex-1">
-            {entry.audioBlob ? (
+            {entry.audioDownloadURL ? (
+              <audio controls className="w-full">
+                <source src={entry.audioDownloadURL} type="audio/webm" />
+                Your browser does not support the audio element.
+              </audio>
+            ) : entry.audioBlob ? (
               <audio controls className="w-full">
                 <source src={URL.createObjectURL(entry.audioBlob)} type="audio/webm" />
                 Your browser does not support the audio element.
               </audio>
-            ) : (
+            ) : entry.audioUrl ? (
               <audio controls className="w-full">
                 <source src={entry.audioUrl} type="audio/webm" />
                 Your browser does not support the audio element.
               </audio>
+            ) : (
+              <div className="text-center py-4 text-gray-500">
+                <i className="ri-error-warning-line text-2xl mb-2"></i>
+                <p>Audio not available</p>
+              </div>
             )}
           </div>
         </div>
