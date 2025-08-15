@@ -73,8 +73,8 @@ export default function MoodCalendar() {
     journalUnsubscribe = onSnapshot(
       query(
         collection(db, 'journalEntries'),
-        where('userId', '==', user.id),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', user.id)
+        // Note: orderBy removed to avoid Firebase index requirement
       ),
       (snapshot) => {
         const journalEntries = snapshot.docs.map(doc => ({
@@ -86,8 +86,8 @@ export default function MoodCalendar() {
         voiceUnsubscribe = onSnapshot(
           query(
             collection(db, 'voiceEntries'),
-            where('userId', '==', user.id),
-            orderBy('createdAt', 'desc')
+            where('userId', '==', user.id)
+            // Note: orderBy removed to avoid Firebase index requirement
           ),
           (voiceSnapshot) => {
             const voiceEntries = voiceSnapshot.docs.map(doc => ({
@@ -132,7 +132,18 @@ export default function MoodCalendar() {
               }
             });
 
-            setMoodData(processedMoodData);
+            // Sort entries by date (most recent first)
+            const sortedDates = Object.keys(processedMoodData).sort((a, b) => {
+              return new Date(b).getTime() - new Date(a).getTime();
+            });
+
+            // Reorder the mood data by sorted dates
+            const sortedMoodData: Record<string, { mood: string; intensity: number; hasVoice: boolean }> = {};
+            sortedDates.forEach(date => {
+              sortedMoodData[date] = processedMoodData[date];
+            });
+
+            setMoodData(sortedMoodData);
             setLoading(false);
           },
           (error) => {

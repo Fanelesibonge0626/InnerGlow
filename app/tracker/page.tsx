@@ -29,8 +29,8 @@ function TrackerContent() {
     journalUnsubscribe = onSnapshot(
       query(
         collection(db, 'journalEntries'),
-        where('userId', '==', user.id),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', user.id)
+        // Note: orderBy removed to avoid Firebase index requirement
       ),
       (snapshot) => {
         const journalEntries = snapshot.docs.map(doc => ({
@@ -42,8 +42,8 @@ function TrackerContent() {
         voiceUnsubscribe = onSnapshot(
           query(
             collection(db, 'voiceEntries'),
-            where('userId', '==', user.id),
-            orderBy('createdAt', 'desc')
+            where('userId', '==', user.id)
+            // Note: orderBy removed to avoid Firebase index requirement
           ),
           (voiceSnapshot) => {
             const voiceEntries = voiceSnapshot.docs.map(doc => ({
@@ -53,10 +53,18 @@ function TrackerContent() {
 
             // Combine all entries
             const allEntries = [...journalEntries, ...voiceEntries];
+            
+            // Sort entries by createdAt on the client side
+            const sortedEntries = allEntries.sort((a: any, b: any) => {
+              if (a.createdAt && b.createdAt) {
+                return b.createdAt.toDate() - a.createdAt.toDate();
+              }
+              return 0;
+            });
 
             // Calculate statistics
-            const totalEntries = allEntries.length;
-            const uniqueDates = new Set(allEntries.map(entry => entry.date || new Date(entry.createdAt?.toDate()).toLocaleDateString()));
+            const totalEntries = sortedEntries.length;
+            const uniqueDates = new Set(sortedEntries.map(entry => entry.date || new Date(entry.createdAt?.toDate()).toLocaleDateString()));
             const activeDays = uniqueDates.size;
 
             // Calculate longest streak (simplified)

@@ -15,7 +15,12 @@ export default function EmotionChart() {
 
   // Fetch journal and voice entries for tracking
   useEffect(() => {
-    if (!user?.id) return;
+    console.log('EmotionChart useEffect triggered, user:', user);
+    if (!user?.id) {
+      console.log('No user ID, returning early');
+      return;
+    }
+    console.log('Fetching data for user ID:', user.id);
 
     let journalUnsubscribe: (() => void) | null = null;
     let voiceUnsubscribe: (() => void) | null = null;
@@ -24,8 +29,8 @@ export default function EmotionChart() {
     journalUnsubscribe = onSnapshot(
       query(
         collection(db, 'journalEntries'),
-        where('userId', '==', user.id),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', user.id)
+        // Note: orderBy removed to avoid Firebase index requirement
       ),
       (snapshot) => {
         const journalEntries = snapshot.docs.map(doc => ({
@@ -38,8 +43,8 @@ export default function EmotionChart() {
         voiceUnsubscribe = onSnapshot(
           query(
             collection(db, 'voiceEntries'),
-            where('userId', '==', user.id),
-            orderBy('createdAt', 'desc')
+            where('userId', '==', user.id)
+            // Note: orderBy removed to avoid Firebase index requirement
           ),
           (voiceSnapshot) => {
             const voiceEntries = voiceSnapshot.docs.map(doc => ({
@@ -50,7 +55,44 @@ export default function EmotionChart() {
 
             // Combine and process all entries
             const allEntries = [...journalEntries, ...voiceEntries];
-            const processedData = processEmotionData(allEntries);
+            
+            console.log('Journal entries:', journalEntries);
+            console.log('Voice entries:', voiceEntries);
+            console.log('Combined entries:', allEntries);
+            
+            // Sort entries by createdAt on the client side
+            const sortedEntries = allEntries.sort((a: any, b: any) => {
+              let dateA: Date, dateB: Date;
+              
+              // Handle different date formats
+              if (a.createdAt?.toDate) {
+                dateA = a.createdAt.toDate();
+              } else if (a.createdAt instanceof Date) {
+                dateA = a.createdAt;
+              } else if (a.date) {
+                dateA = new Date(a.date);
+              } else {
+                dateA = new Date(0);
+              }
+              
+              if (b.createdAt?.toDate) {
+                dateB = b.createdAt.toDate();
+              } else if (b.createdAt instanceof Date) {
+                dateB = b.createdAt;
+              } else if (b.date) {
+                dateB = new Date(b.date);
+              } else {
+                dateB = new Date(0);
+              }
+              
+              return dateB.getTime() - dateA.getTime();
+            });
+            
+            console.log('Sorted entries:', sortedEntries);
+            
+            const processedData = processEmotionData(sortedEntries);
+            console.log('Processed data:', processedData);
+            
             setEmotionData(processedData.lineData);
             setEmotionSummary(processedData.pieData);
             setLoading(false);
@@ -79,7 +121,19 @@ export default function EmotionChart() {
     const emotionCounts: Record<string, number> = {};
 
     entries.forEach(entry => {
-      const date = entry.date || new Date(entry.createdAt?.toDate()).toLocaleDateString();
+      let date: string;
+      
+      // Handle different date formats
+      if (entry.date) {
+        date = entry.date;
+      } else if (entry.createdAt?.toDate) {
+        date = entry.createdAt.toDate().toLocaleDateString();
+      } else if (entry.createdAt instanceof Date) {
+        date = entry.createdAt.toLocaleDateString();
+      } else {
+        date = new Date().toLocaleDateString(); // fallback
+      }
+      
       const emotion = entry.emotion;
 
       if (!dailyEmotions[date]) {

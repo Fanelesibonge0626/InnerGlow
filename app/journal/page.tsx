@@ -32,16 +32,16 @@ function JournalContent() {
 
   const addEntry = async (newEntry: any) => {
     try {
-      const entry = {
-        ...newEntry,
+    const entry = {
+      ...newEntry,
         userId: user?.id,
-        date: new Date().toLocaleDateString(),
+      date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         createdAt: new Date()
-      };
+    };
       
       await addDoc(collection(db, 'journalEntries'), entry);
-      setShowForm(false);
+    setShowForm(false);
     } catch (error) {
       console.error('Error adding entry:', error);
       alert('Failed to save journal entry. Please try again.');

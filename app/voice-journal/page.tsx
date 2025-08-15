@@ -59,15 +59,24 @@ export default function VoiceJournal() {
     const unsubscribe = onSnapshot(
       query(
         collection(db, 'voiceEntries'),
-        where('userId', '==', user.id),
-        orderBy('createdAt', 'desc')
+        where('userId', '==', user.id)
+        // Note: orderBy removed to avoid Firebase index requirement
       ),
       (snapshot) => {
         const entriesData = snapshot.docs.map(doc => ({
           id: doc.id,
           ...doc.data()
         }));
-        setEntries(entriesData);
+        
+        // Sort entries by createdAt on the client side
+        const sortedEntries = entriesData.sort((a: any, b: any) => {
+          if (a.createdAt && b.createdAt) {
+            return b.createdAt.toDate() - a.createdAt.toDate();
+          }
+          return 0;
+        });
+        
+        setEntries(sortedEntries);
         setLoading(false);
       },
       (error) => {

@@ -2,7 +2,7 @@
 
 interface VoiceEntryProps {
   entry: {
-    id: number;
+    id: string;
     title: string;
     audioUrl: string;
     audioBlob?: Blob;
@@ -21,6 +21,7 @@ interface VoiceEntryProps {
     color: string;
     icon: string;
   }>;
+  onDelete?: (id: string) => void;
 }
 
 export default function VoiceEntry({ entry, emotions, onDelete }: VoiceEntryProps) {
