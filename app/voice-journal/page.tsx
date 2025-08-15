@@ -28,15 +28,28 @@ export default function VoiceJournal() {
 
   const addEntry = async (newEntry: any) => {
     try {
+      console.log('Adding voice entry...');
+      console.log('User:', user);
+      console.log('User ID:', user?.id);
+      
+      if (!user?.id) {
+        console.error('No user ID available');
+        alert('Please log in to save voice entries');
+        return;
+      }
+
       const entry = {
         ...newEntry,
-        userId: user?.id,
+        userId: user.id,
         date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         createdAt: new Date()
       };
 
+      console.log('Voice entry to save:', entry);
+
       await addDoc(collection(db, 'voiceEntries'), entry);
+      console.log('Voice entry saved successfully');
       setShowRecorder(false);
     } catch (error) {
       console.error('Error adding voice entry:', error);

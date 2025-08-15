@@ -2,12 +2,22 @@
 'use client';
 
 import React, { useState, useEffect, createContext, useContext, ReactNode } from 'react';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut, 
+  onAuthStateChanged,
+  User as FirebaseUser 
+} from 'firebase/auth';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { auth, db } from './firebase';
 
 interface User {
   id: string;
   email: string;
   firstName: string;
   lastName: string;
+  displayName?: string;
 }
 
 interface AuthContextType {
@@ -40,49 +50,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load persisted user (if any) on mount
+  // Listen for Firebase auth state changes
   useEffect(() => {
-    try {
-      const savedUser = localStorage.getItem('innerglow_user');
-      if (savedUser) {
-        setUser(JSON.parse(savedUser));
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser: FirebaseUser | null) => {
+      if (firebaseUser) {
+        try {
+          // Get user profile from Firestore
+          const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
+          if (userDoc.exists()) {
+            const userData = userDoc.data();
+            setUser({
+              id: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              firstName: userData.firstName || '',
+              lastName: userData.lastName || '',
+              displayName: firebaseUser.displayName || ''
+            });
+          } else {
+            // Create user profile if it doesn't exist
+            const userData: User = {
+              id: firebaseUser.uid,
+              email: firebaseUser.email || '',
+              firstName: firebaseUser.displayName?.split(' ')[0] || 'User',
+              lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || 'Name',
+              displayName: firebaseUser.displayName || ''
+            };
+            await setDoc(doc(db, 'users', firebaseUser.uid), userData);
+            setUser(userData);
+          }
+        } catch (error) {
+          console.error('Error fetching user profile:', error);
+          // Fallback to basic user data
+          setUser({
+            id: firebaseUser.uid,
+            email: firebaseUser.email || '',
+            firstName: firebaseUser.displayName?.split(' ')[0] || 'User',
+            lastName: firebaseUser.displayName?.split(' ').slice(1).join(' ') || 'Name',
+            displayName: firebaseUser.displayName || ''
+          });
+        }
+      } else {
+        setUser(null);
       }
-    } catch (err) {
-      // In environments where localStorage is unavailable (e.g., SSR)
-      console.warn('Unable to access localStorage:', err);
-    } finally {
       setIsLoading(false);
-    }
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  /** Simulated login – resolves to `true` on success, `false` otherwise */
+  /** Real Firebase login */
   const login = async (email: string, password: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Simulate network latency
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-
-      if (email && password) {
-        const userData: User = {
-          id: '1',
-          email,
-          firstName: 'User',
-          lastName: 'Name',
-        };
-        setUser(userData);
-        localStorage.setItem('innerglow_user', JSON.stringify(userData));
-        return true;
-      }
-      return false;
-    } catch (err) {
-      console.error('Login error:', err);
+      await signInWithEmailAndPassword(auth, email, password);
+      return true;
+    } catch (error: any) {
+      console.error('Login error:', error);
+      alert(`Login failed: ${error.message}`);
       return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  /** Simulated registration – resolves to `true` on success, `false` otherwise */
+  /** Real Firebase registration */
   const register = async (
     firstName: string,
     lastName: string,
@@ -91,36 +122,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Simulate network latency
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      if (firstName && lastName && email && password) {
-        const userData: User = {
-          id: '1',
-          email,
-          firstName,
-          lastName,
-        };
-        setUser(userData);
-        localStorage.setItem('innerglow_user', JSON.stringify(userData));
-        return true;
-      }
-      return false;
-    } catch (err) {
-      console.error('Registration error:', err);
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+      
+      // Create user profile in Firestore
+      const userData: User = {
+        id: firebaseUser.uid,
+        email: firebaseUser.email || '',
+        firstName,
+        lastName,
+        displayName: `${firstName} ${lastName}`
+      };
+      
+      await setDoc(doc(db, 'users', firebaseUser.uid), userData);
+      setUser(userData);
+      return true;
+    } catch (error: any) {
+      console.error('Registration error:', error);
+      alert(`Registration failed: ${error.message}`);
       return false;
     } finally {
       setIsLoading(false);
     }
   };
 
-  /** Logout – clears state and persisted data */
-  const logout = () => {
-    setUser(null);
+  /** Real Firebase logout */
+  const logout = async () => {
     try {
-      localStorage.removeItem('innerglow_user');
-    } catch (err) {
-      console.warn('Unable to clear localStorage on logout:', err);
+      await signOut(auth);
+      setUser(null);
+    } catch (error) {
+      console.error('Logout error:', error);
     }
   };
 

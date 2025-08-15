@@ -82,7 +82,7 @@ export default function Profile() {
                 <span className="text-gray-700 dark:text-gray-300">Welcome, {user?.firstName}</span>
                 <Link href="/profile" className="text-purple-600 dark:text-purple-400 font-medium whitespace-nowrap cursor-pointer">Profile</Link>
                 <button 
-                  onClick={logout}
+                  onClick={() => logout()}
                   className="text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium whitespace-nowrap cursor-pointer"
                 >
                   Sign Out

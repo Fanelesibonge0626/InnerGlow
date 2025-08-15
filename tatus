@@ -1,0 +1,4 @@
+[33m9b4d738[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmaster[m[33m, [m[1;31morigin/master[m[33m)[m Fix Firebase index error and add debugging for tracker - Remove orderBy clauses to avoid Firebase index requirement - Implement client-side sorting for all components - Add comprehensive date handling for Firebase Timestamps - Add console logging to debug tracker data flow
+[33m879bb38[m Fix tracker not updating - Integrate Firebase for real-time data - Add voice entries to emotion tracking - Connect journal and voice entries to tracker components - Add loading states and proper error handling - Update statistics to include both entry types
+[33me5fd5b2[m Add Firebase Firestore integration for journal functionality - Real-time data persistence - User-specific journal entries - Cross-device sync - Proper error handling and loading states
+[33ma3132bf[m Initial commit: InnerGlow mental health and wellness app

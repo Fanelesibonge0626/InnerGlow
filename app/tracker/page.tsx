@@ -132,7 +132,7 @@ function TrackerContent() {
                 <ThemeToggle />
                 <span className="text-sm text-gray-600 dark:text-gray-400">Welcome, {user?.firstName}</span>
                 <button
-                  onClick={logout}
+                  onClick={() => logout()}
                   className="text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium whitespace-nowrap cursor-pointer"
                 >
                   <i className="ri-logout-circle-line mr-1"></i>

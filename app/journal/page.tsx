@@ -32,16 +32,29 @@ function JournalContent() {
 
   const addEntry = async (newEntry: any) => {
     try {
-    const entry = {
-      ...newEntry,
-        userId: user?.id,
-      date: new Date().toLocaleDateString(),
+      console.log('Adding journal entry...');
+      console.log('User:', user);
+      console.log('User ID:', user?.id);
+      
+      if (!user?.id) {
+        console.error('No user ID available');
+        alert('Please log in to save journal entries');
+        return;
+      }
+
+      const entry = {
+        ...newEntry,
+        userId: user.id,
+        date: new Date().toLocaleDateString(),
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
         createdAt: new Date()
-    };
+      };
+      
+      console.log('Entry to save:', entry);
       
       await addDoc(collection(db, 'journalEntries'), entry);
-    setShowForm(false);
+      console.log('Journal entry saved successfully');
+      setShowForm(false);
     } catch (error) {
       console.error('Error adding entry:', error);
       alert('Failed to save journal entry. Please try again.');
@@ -137,7 +150,7 @@ function JournalContent() {
                   Profile
                 </Link>
                 <button
-                  onClick={logout}
+                  onClick={() => logout()}
                   className="text-gray-700 dark:text-gray-300 hover:text-purple-600 dark:hover:text-purple-400 font-medium whitespace-nowrap cursor-pointer"
                 >
                   <i className="ri-logout-circle-line mr-1"></i>
