@@ -44,16 +44,9 @@ export default function Profile() {
     await new Promise(resolve => setTimeout(resolve, 2000));
 
     const data = {
-      journalEntries: [
-        { date: '2024-01-15', title: 'Morning Reflections', emotion: 'grateful', content: 'Sample journal entry...' },
-        { date: '2024-01-13', title: 'Breakthrough Moment', emotion: 'happy', content: 'Another sample entry...' }
-      ],
-      voiceEntries: [
-        { date: '2024-01-15', title: 'Voice Note', emotion: 'calm', duration: '3:45' }
-      ],
-      emotionData: [
-        { date: '2024-01-15', grateful: 8, happy: 7, anxious: 2, sad: 1 }
-      ]
+      journalEntries: [],
+      voiceEntries: [],
+      emotionData: []
     };
 
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });

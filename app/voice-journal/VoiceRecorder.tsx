@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { getRandomAffirmation, Affirmation } from '../../lib/affirmations';
 
 interface VoiceRecorderProps {
   onSave: (entry: any) => void;
@@ -19,6 +20,7 @@ export default function VoiceRecorder({ onSave, onCancel, emotions }: VoiceRecor
   const [audioUrl, setAudioUrl] = useState<string>('');
   const [title, setTitle] = useState('');
   const [selectedEmotion, setSelectedEmotion] = useState('');
+  const [currentAffirmation, setCurrentAffirmation] = useState<Affirmation | null>(null);
   const [duration, setDuration] = useState(0);
   const [recordingError, setRecordingError] = useState<string>('');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -138,6 +140,17 @@ export default function VoiceRecorder({ onSave, onCancel, emotions }: VoiceRecor
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const updateAffirmation = (emotion: string) => {
+    const affirmation = getRandomAffirmation(emotion);
+    setCurrentAffirmation(affirmation);
+  };
+
+  const refreshAffirmation = () => {
+    if (selectedEmotion) {
+      updateAffirmation(selectedEmotion);
+    }
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !selectedEmotion || !audioBlob) return;
@@ -147,6 +160,7 @@ export default function VoiceRecorder({ onSave, onCancel, emotions }: VoiceRecor
       audioUrl,
       audioBlob,
       emotion: selectedEmotion,
+      affirmation: currentAffirmation,
       duration: formatTime(duration),
       timestamp: Date.now()
     });
@@ -216,7 +230,10 @@ export default function VoiceRecorder({ onSave, onCancel, emotions }: VoiceRecor
               <button
                 key={emotion.name}
                 type="button"
-                onClick={() => setSelectedEmotion(emotion.name)}
+                onClick={() => {
+                  setSelectedEmotion(emotion.name);
+                  updateAffirmation(emotion.name);
+                }}
                 className={`flex items-center space-x-3 p-3 rounded-lg border transition-all duration-200 cursor-pointer whitespace-nowrap ${
                   selectedEmotion === emotion.name
                     ? 'border-purple-500 bg-purple-50'
@@ -229,6 +246,33 @@ export default function VoiceRecorder({ onSave, onCancel, emotions }: VoiceRecor
             ))}
           </div>
         </div>
+
+        {/* Affirmation Display */}
+        {selectedEmotion && currentAffirmation && (
+          <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center space-x-2 mb-2">
+                  <i className="ri-heart-2-fill text-blue-500"></i>
+                  <span className="text-sm font-medium text-blue-700 capitalize">
+                    {currentAffirmation.category} • {currentAffirmation.intensity}
+                  </span>
+                </div>
+                <p className="text-blue-800 text-lg font-medium leading-relaxed">
+                  "{currentAffirmation.text}"
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={refreshAffirmation}
+                className="ml-4 p-2 text-blue-500 hover:text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
+                title="Get another affirmation"
+              >
+                <i className="ri-refresh-line text-lg"></i>
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl p-6">
           <div className="text-center">

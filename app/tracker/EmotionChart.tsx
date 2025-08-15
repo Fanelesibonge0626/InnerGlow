@@ -1,27 +1,158 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-
-const emotionData = [
-  { date: 'Dec 1', grateful: 8, anxious: 3, happy: 7, sad: 2 },
-  { date: 'Dec 3', grateful: 6, anxious: 5, happy: 5, sad: 4 },
-  { date: 'Dec 5', grateful: 9, anxious: 2, happy: 8, sad: 1 },
-  { date: 'Dec 7', grateful: 7, anxious: 4, happy: 6, sad: 3 },
-  { date: 'Dec 9', grateful: 8, anxious: 3, happy: 7, sad: 2 },
-  { date: 'Dec 11', grateful: 5, anxious: 6, happy: 4, sad: 5 },
-  { date: 'Dec 13', grateful: 9, anxious: 1, happy: 9, sad: 1 },
-  { date: 'Dec 15', grateful: 7, anxious: 3, happy: 8, sad: 2 },
-];
-
-const emotionSummary = [
-  { name: 'Grateful', value: 35, color: '#ec4899' },
-  { name: 'Happy', value: 30, color: '#a855f7' },
-  { name: 'Anxious', value: 20, color: '#f59e0b' },
-  { name: 'Sad', value: 15, color: '#6b7280' },
-];
+import { useAuth } from '../../lib/auth';
+import { db } from '../../lib/firebase';
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 
 export default function EmotionChart() {
+  const { user } = useAuth();
+  const [emotionData, setEmotionData] = useState<any[]>([]);
+  const [emotionSummary, setEmotionSummary] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch journal and voice entries for tracking
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let journalUnsubscribe: (() => void) | null = null;
+    let voiceUnsubscribe: (() => void) | null = null;
+
+    // Fetch journal entries
+    journalUnsubscribe = onSnapshot(
+      query(
+        collection(db, 'journalEntries'),
+        where('userId', '==', user.id),
+        orderBy('createdAt', 'desc')
+      ),
+      (snapshot) => {
+        const journalEntries = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data(),
+          type: 'journal'
+        }));
+
+        // Fetch voice entries
+        voiceUnsubscribe = onSnapshot(
+          query(
+            collection(db, 'voiceEntries'),
+            where('userId', '==', user.id),
+            orderBy('createdAt', 'desc')
+          ),
+          (voiceSnapshot) => {
+            const voiceEntries = voiceSnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data(),
+              type: 'voice'
+            }));
+
+            // Combine and process all entries
+            const allEntries = [...journalEntries, ...voiceEntries];
+            const processedData = processEmotionData(allEntries);
+            setEmotionData(processedData.lineData);
+            setEmotionSummary(processedData.pieData);
+            setLoading(false);
+          },
+          (error) => {
+            console.error('Error fetching voice entries:', error);
+            setLoading(false);
+          }
+        );
+      },
+      (error) => {
+        console.error('Error fetching journal entries:', error);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      if (journalUnsubscribe) journalUnsubscribe();
+      if (voiceUnsubscribe) voiceUnsubscribe();
+    };
+  }, [user?.id]);
+
+  const processEmotionData = (entries: any[]) => {
+    // Group entries by date and emotion
+    const dailyEmotions: Record<string, Record<string, number>> = {};
+    const emotionCounts: Record<string, number> = {};
+
+    entries.forEach(entry => {
+      const date = entry.date || new Date(entry.createdAt?.toDate()).toLocaleDateString();
+      const emotion = entry.emotion;
+
+      if (!dailyEmotions[date]) {
+        dailyEmotions[date] = {};
+      }
+      if (!dailyEmotions[date][emotion]) {
+        dailyEmotions[date][emotion] = 0;
+      }
+      dailyEmotions[date][emotion]++;
+
+      if (!emotionCounts[emotion]) {
+        emotionCounts[emotion] = 0;
+      }
+      emotionCounts[emotion]++;
+    });
+
+    // Convert to line chart format
+    const lineData = Object.entries(dailyEmotions).map(([date, emotions]) => ({
+      date,
+      grateful: emotions.grateful || 0,
+      happy: emotions.happy || 0,
+      anxious: emotions.anxious || 0,
+      sad: emotions.sad || 0,
+      calm: emotions.calm || 0,
+      angry: emotions.angry || 0,
+      confused: emotions.confused || 0,
+      excited: emotions.excited || 0,
+      hopeful: emotions.hopeful || 0
+    }));
+
+    // Convert to pie chart format
+    const totalEntries = Object.values(emotionCounts).reduce((sum, count) => sum + count, 0);
+    const pieData = Object.entries(emotionCounts).map(([emotion, count]) => ({
+      name: emotion,
+      value: totalEntries > 0 ? Math.round((count / totalEntries) * 100) : 0,
+      color: getEmotionColor(emotion)
+    }));
+
+    return { lineData, pieData };
+  };
+
+  const getEmotionColor = (emotion: string) => {
+    const colors: Record<string, string> = {
+      grateful: '#ec4899',
+      happy: '#a855f7',
+      calm: '#3b82f6',
+      anxious: '#f59e0b',
+      sad: '#6b7280',
+      angry: '#ef4444',
+      confused: '#8b5cf6',
+      excited: '#ec4899',
+      hopeful: '#10b981'
+    };
+    return colors[emotion] || '#6b7280';
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-8">
+        <div className="bg-white rounded-2xl p-8 shadow-lg border border-pink-100">
+          <div className="flex items-center justify-center h-80">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="ri-loader-4-line text-4xl text-purple-500 animate-spin"></i>
+              </div>
+              <p className="text-gray-600">Loading your emotional journey...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="bg-white rounded-2xl p-8 shadow-lg border border-pink-100">

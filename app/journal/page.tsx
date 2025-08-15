@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../lib/auth';
 import ProtectedRoute from '../../components/ProtectedRoute';
@@ -19,7 +19,8 @@ const emotions = [
   { name: 'sad', color: 'bg-purple-500', icon: 'ri-drop-fill' },
   { name: 'angry', color: 'bg-red-500', icon: 'ri-fire-fill' },
   { name: 'confused', color: 'bg-gray-500', icon: 'ri-question-fill' },
-  { name: 'excited', color: 'bg-pink-500', icon: 'ri-sparkling-fill' }
+  { name: 'excited', color: 'bg-pink-500', icon: 'ri-sparkling-fill' },
+  { name: 'hopeful', color: 'bg-teal-500', icon: 'ri-sun-line' }
 ];
 
 function JournalContent() {
@@ -27,6 +28,7 @@ function JournalContent() {
   const [entries, setEntries] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
 
   const addEntry = async (newEntry: any) => {
     try {
@@ -59,10 +61,18 @@ function JournalContent() {
   useEffect(() => {
     if (!user?.id) return;
 
+    // Clean up previous listener
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
+    }
+
+    setLoading(true);
+    
+    // Temporarily remove orderBy to avoid index requirement
     const q = query(
       collection(db, 'journalEntries'),
-      where('userId', '==', user.id),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', user.id)
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
@@ -70,12 +80,39 @@ function JournalContent() {
         id: doc.id,
         ...doc.data()
       }));
-      setEntries(entriesData);
+      // Sort entries by createdAt on the client side
+      const sortedEntries = entriesData.sort((a: any, b: any) => {
+        if (a.createdAt && b.createdAt) {
+          return b.createdAt.toDate() - a.createdAt.toDate();
+        }
+        return 0;
+      });
+      setEntries(sortedEntries);
+      setLoading(false);
+    }, (error) => {
+      console.error('Error loading entries:', error);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    unsubscribeRef.current = unsubscribe;
+
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+    };
   }, [user?.id]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+    };
+  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50 dark:from-gray-900 dark:to-gray-800">

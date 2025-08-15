@@ -5,7 +5,13 @@ interface VoiceEntryProps {
     id: number;
     title: string;
     audioUrl: string;
+    audioBlob?: Blob;
     emotion: string;
+    affirmation?: {
+      text: string;
+      category: string;
+      intensity: string;
+    };
     date: string;
     time: string;
     duration: string;
@@ -17,7 +23,7 @@ interface VoiceEntryProps {
   }>;
 }
 
-export default function VoiceEntry({ entry, emotions }: VoiceEntryProps) {
+export default function VoiceEntry({ entry, emotions, onDelete }: VoiceEntryProps) {
   const getEmotionStyle = (emotionName: string) => {
     const emotion = emotions.find(e => e.name === emotionName);
     return emotion ? emotion.color : 'bg-gray-500';
@@ -51,6 +57,27 @@ export default function VoiceEntry({ entry, emotions }: VoiceEntryProps) {
         </div>
       </div>
       
+      {/* Affirmation Display */}
+      {entry.affirmation && (
+        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 mb-4 border border-blue-200">
+          <div className="flex items-start space-x-3">
+            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
+              <i className="ri-heart-2-fill text-blue-500 text-sm"></i>
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center space-x-2 mb-1">
+                <span className="text-xs font-medium text-blue-700 capitalize">
+                  {entry.affirmation.category} • {entry.affirmation.intensity}
+                </span>
+              </div>
+              <p className="text-blue-800 text-sm leading-relaxed">
+                "{entry.affirmation.text}"
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Audio Player */}
       <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl p-4 mb-4">
         <div className="flex items-center space-x-4">
@@ -58,10 +85,17 @@ export default function VoiceEntry({ entry, emotions }: VoiceEntryProps) {
             <i className="ri-volume-up-fill text-white text-xl"></i>
           </div>
           <div className="flex-1">
-            <audio controls className="w-full">
-              <source src={entry.audioUrl} type="audio/webm" />
-              Your browser does not support the audio element.
-            </audio>
+            {entry.audioBlob ? (
+              <audio controls className="w-full">
+                <source src={URL.createObjectURL(entry.audioBlob)} type="audio/webm" />
+                Your browser does not support the audio element.
+              </audio>
+            ) : (
+              <audio controls className="w-full">
+                <source src={entry.audioUrl} type="audio/webm" />
+                Your browser does not support the audio element.
+              </audio>
+            )}
           </div>
         </div>
       </div>
@@ -70,7 +104,10 @@ export default function VoiceEntry({ entry, emotions }: VoiceEntryProps) {
         <button className="text-gray-400 hover:text-purple-500 p-2 rounded-lg hover:bg-purple-50 transition-colors cursor-pointer">
           <i className="ri-edit-line"></i>
         </button>
-        <button className="text-gray-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors cursor-pointer">
+        <button 
+          onClick={() => onDelete?.(entry.id)}
+          className="text-gray-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors cursor-pointer"
+        >
           <i className="ri-delete-bin-line"></i>
         </button>
       </div>

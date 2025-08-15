@@ -1,9 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import VoiceEntry from './VoiceEntry';
 import VoiceRecorder from './VoiceRecorder';
+import { useAuth } from '../../lib/auth';
+import { db } from '../../lib/firebase';
+import { collection, addDoc, deleteDoc, doc, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 
 const emotions = [
   { name: 'grateful', color: 'bg-green-500', icon: 'ri-heart-3-fill' },
@@ -17,47 +20,64 @@ const emotions = [
 ];
 
 export default function VoiceJournal() {
-  const [entries, setEntries] = useState([
-    {
-      id: 1,
-      title: "Morning Reflections",
-      audioUrl: "data:audio/wav;base64,", // Placeholder for demo
-      emotion: "calm",
-      date: "2024-01-15",
-      time: "08:30 AM",
-      duration: "3:45"
-    },
-    {
-      id: 2,
-      title: "Breakthrough Moment",
-      audioUrl: "data:audio/wav;base64,", // Placeholder for demo
-      emotion: "excited",
-      date: "2024-01-13",
-      time: "07:20 PM",
-      duration: "5:12"
-    },
-    {
-      id: 3,
-      title: "Processing Today",
-      audioUrl: "data:audio/wav;base64,", // Placeholder for demo
-      emotion: "grateful",
-      date: "2024-01-11",
-      time: "10:15 PM",
-      duration: "4:33"
-    }
-  ]);
+  const { user } = useAuth();
+  const [entries, setEntries] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showRecorder, setShowRecorder] = useState(false);
 
-  const addEntry = (newEntry: any) => {
-    const entry = {
-      id: Date.now(),
-      ...newEntry,
-      date: new Date().toLocaleDateString(),
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-    setEntries([entry, ...entries]);
-    setShowRecorder(false);
+  const addEntry = async (newEntry: any) => {
+    try {
+      const entry = {
+        ...newEntry,
+        userId: user?.id,
+        date: new Date().toLocaleDateString(),
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        createdAt: new Date()
+      };
+
+      await addDoc(collection(db, 'voiceEntries'), entry);
+      setShowRecorder(false);
+    } catch (error) {
+      console.error('Error adding voice entry:', error);
+      alert('Failed to save voice entry. Please try again.');
+    }
   };
+
+  const deleteEntry = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'voiceEntries', id));
+    } catch (error) {
+      console.error('Error deleting voice entry:', error);
+      alert('Failed to delete voice entry. Please try again.');
+    }
+  };
+
+  // Load voice entries from Firebase
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const unsubscribe = onSnapshot(
+      query(
+        collection(db, 'voiceEntries'),
+        where('userId', '==', user.id),
+        orderBy('createdAt', 'desc')
+      ),
+      (snapshot) => {
+        const entriesData = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setEntries(entriesData);
+        setLoading(false);
+      },
+      (error) => {
+        console.error('Error loading voice entries:', error);
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.id]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 to-purple-50">
@@ -144,11 +164,14 @@ export default function VoiceJournal() {
             </div>
           </div>
           
-          {entries.map((entry) => (
-            <VoiceEntry key={entry.id} entry={entry} emotions={emotions} />
-          ))}
-          
-          {entries.length === 0 && (
+          {loading ? (
+            <div className="text-center py-12">
+              <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="ri-loader-4-line text-4xl text-purple-500 animate-spin"></i>
+              </div>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">Loading your voice entries...</h3>
+            </div>
+          ) : entries.length === 0 ? (
             <div className="text-center py-12">
               <div className="w-24 h-24 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i className="ri-mic-line text-4xl text-purple-500"></i>
@@ -156,6 +179,10 @@ export default function VoiceJournal() {
               <h3 className="text-xl font-semibold text-gray-900 mb-2">No voice entries yet</h3>
               <p className="text-gray-600">Start by recording your first voice entry to begin your speaking journey</p>
             </div>
+          ) : (
+            entries.map((entry) => (
+              <VoiceEntry key={entry.id} entry={entry} emotions={emotions} onDelete={deleteEntry} />
+            ))
           )}
         </div>
 

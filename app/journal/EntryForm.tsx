@@ -1,7 +1,8 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getRandomAffirmation, type Affirmation } from '../../lib/affirmations';
 
 interface EntryFormProps {
   onSave: (entry: any) => void;
@@ -17,6 +18,17 @@ export default function EntryForm({ onSave, onCancel, emotions }: EntryFormProps
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [selectedEmotion, setSelectedEmotion] = useState('');
+  const [currentAffirmation, setCurrentAffirmation] = useState<Affirmation | null>(null);
+
+  // Update affirmation when emotion changes
+  useEffect(() => {
+    if (selectedEmotion) {
+      const affirmation = getRandomAffirmation(selectedEmotion);
+      setCurrentAffirmation(affirmation);
+    } else {
+      setCurrentAffirmation(null);
+    }
+  }, [selectedEmotion]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -74,6 +86,44 @@ export default function EntryForm({ onSave, onCancel, emotions }: EntryFormProps
             ))}
           </div>
         </div>
+
+        {/* Affirmation Display */}
+        {currentAffirmation && (
+          <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4">
+            <div className="flex items-start justify-between">
+              <div className="flex items-start space-x-3 flex-1">
+                <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+                  <i className="ri-heart-3-fill text-white text-sm"></i>
+                </div>
+                <div className="flex-1">
+                  <h4 className="font-semibold text-purple-800 mb-1">A gentle reminder for you:</h4>
+                  <p className="text-purple-700 text-sm leading-relaxed italic">
+                    "{currentAffirmation.text}"
+                  </p>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                      {currentAffirmation.category}
+                    </span>
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-pink-100 text-pink-800">
+                      {currentAffirmation.intensity}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const newAffirmation = getRandomAffirmation(selectedEmotion);
+                  setCurrentAffirmation(newAffirmation);
+                }}
+                className="ml-3 p-2 text-purple-600 hover:text-purple-700 hover:bg-purple-100 rounded-lg transition-colors"
+                title="Get another affirmation"
+              >
+                <i className="ri-refresh-line text-lg"></i>
+              </button>
+            </div>
+          </div>
+        )}
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">

@@ -1,14 +1,108 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../../lib/auth';
 import ProtectedRoute from '../../components/ProtectedRoute';
 import EmotionChart from './EmotionChart';
 import MoodCalendar from './MoodCalendar';
+import { db } from '../../lib/firebase';
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 
 function TrackerContent() {
   const { user, logout } = useAuth();
+  const [stats, setStats] = useState({
+    totalEntries: 0,
+    activeDays: 0,
+    longestStreak: 0
+  });
+
+  // Fetch statistics
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let journalUnsubscribe: (() => void) | null = null;
+    let voiceUnsubscribe: (() => void) | null = null;
+
+    // Fetch journal entries
+    journalUnsubscribe = onSnapshot(
+      query(
+        collection(db, 'journalEntries'),
+        where('userId', '==', user.id),
+        orderBy('createdAt', 'desc')
+      ),
+      (snapshot) => {
+        const journalEntries = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as any[];
+
+        // Fetch voice entries
+        voiceUnsubscribe = onSnapshot(
+          query(
+            collection(db, 'voiceEntries'),
+            where('userId', '==', user.id),
+            orderBy('createdAt', 'desc')
+          ),
+          (voiceSnapshot) => {
+            const voiceEntries = voiceSnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            })) as any[];
+
+            // Combine all entries
+            const allEntries = [...journalEntries, ...voiceEntries];
+
+            // Calculate statistics
+            const totalEntries = allEntries.length;
+            const uniqueDates = new Set(allEntries.map(entry => entry.date || new Date(entry.createdAt?.toDate()).toLocaleDateString()));
+            const activeDays = uniqueDates.size;
+
+            // Calculate longest streak (simplified)
+            const sortedDates = Array.from(uniqueDates).sort();
+            let currentStreak = 0;
+            let longestStreak = 0;
+            let lastDate: Date | null = null;
+
+            sortedDates.forEach(dateStr => {
+              const currentDate = new Date(dateStr);
+              if (lastDate) {
+                const diffTime = Math.abs(currentDate.getTime() - lastDate.getTime());
+                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                if (diffDays === 1) {
+                  currentStreak++;
+                } else {
+                  currentStreak = 1;
+                }
+              } else {
+                currentStreak = 1;
+              }
+              longestStreak = Math.max(longestStreak, currentStreak);
+              lastDate = currentDate;
+            });
+
+            setStats({
+              totalEntries,
+              activeDays,
+              longestStreak
+            });
+          },
+          (error) => {
+            console.error('Error fetching voice entries:', error);
+          }
+        );
+      },
+      (error) => {
+        console.error('Error fetching journal entries:', error);
+      }
+    );
+
+    return () => {
+      if (journalUnsubscribe) journalUnsubscribe();
+      if (voiceUnsubscribe) voiceUnsubscribe();
+    };
+  }, [user?.id]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-pink-50 via-purple-50 to-indigo-100">
@@ -61,7 +155,7 @@ function TrackerContent() {
                 <i className="ri-heart-line text-pink-500 text-2xl"></i>
               </div>
               <h3 className="text-xl font-semibold text-gray-800 mb-2">Total Entries</h3>
-              <div className="text-3xl font-bold text-pink-500 mb-2">47</div>
+              <div className="text-3xl font-bold text-pink-500 mb-2">{stats.totalEntries}</div>
               <p className="text-sm text-gray-600">Journal & voice entries this month</p>
             </div>
 
@@ -70,7 +164,7 @@ function TrackerContent() {
                 <i className="ri-calendar-check-line text-purple-500 text-2xl"></i>
               </div>
               <h3 className="text-xl font-semibold text-gray-800 mb-2">Active Days</h3>
-              <div className="text-3xl font-bold text-purple-500 mb-2">18</div>
+              <div className="text-3xl font-bold text-purple-500 mb-2">{stats.activeDays}</div>
               <p className="text-sm text-gray-600">Days with emotional check-ins</p>
             </div>
 
@@ -79,7 +173,7 @@ function TrackerContent() {
                 <i className="ri-trophy-line text-amber-500 text-2xl"></i>
               </div>
               <h3 className="text-xl font-semibold text-gray-800 mb-2">Longest Streak</h3>
-              <div className="text-3xl font-bold text-amber-500 mb-2">7</div>
+              <div className="text-3xl font-bold text-amber-500 mb-2">{stats.longestStreak}</div>
               <p className="text-sm text-gray-600">Consecutive days of journaling</p>
             </div>
           </div>

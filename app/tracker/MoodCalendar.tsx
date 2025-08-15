@@ -1,35 +1,40 @@
 
 'use client';
 
-import { useState } from 'react';
-
-const moodData: Record<string, { mood: string; intensity: number; hasVoice: boolean }> = {
-  '2023-12-01': { mood: 'grateful', intensity: 8, hasVoice: true },
-  '2023-12-03': { mood: 'anxious', intensity: 5, hasVoice: false },
-  '2023-12-05': { mood: 'happy', intensity: 9, hasVoice: true },
-  '2023-12-07': { mood: 'grateful', intensity: 7, hasVoice: false },
-  '2023-12-09': { mood: 'happy', intensity: 8, hasVoice: true },
-  '2023-12-11': { mood: 'sad', intensity: 6, hasVoice: false },
-  '2023-12-13': { mood: 'grateful', intensity: 9, hasVoice: true },
-  '2023-12-15': { mood: 'happy', intensity: 8, hasVoice: false },
-};
+import { useState, useEffect } from 'react';
+import { useAuth } from '../../lib/auth';
+import { db } from '../../lib/firebase';
+import { collection, query, where, orderBy, onSnapshot } from 'firebase/firestore';
 
 const moodColors: Record<string, string> = {
   grateful: 'bg-pink-400',
   happy: 'bg-purple-400', 
+  calm: 'bg-blue-400',
   anxious: 'bg-amber-400',
   sad: 'bg-gray-400',
+  angry: 'bg-red-400',
+  confused: 'bg-purple-400',
+  excited: 'bg-pink-400',
+  hopeful: 'bg-green-400'
 };
 
 const moodEmojis: Record<string, string> = {
   grateful: '🙏',
   happy: '😊',
+  calm: '😌',
   anxious: '😰', 
   sad: '😢',
+  angry: '😠',
+  confused: '😕',
+  excited: '🤩',
+  hopeful: '✨'
 };
 
 export default function MoodCalendar() {
+  const { user } = useAuth();
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [moodData, setMoodData] = useState<Record<string, { mood: string; intensity: number; hasVoice: boolean }>>({});
+  const [loading, setLoading] = useState(true);
   
   const currentDate = new Date();
   const year = currentDate.getFullYear();
@@ -56,6 +61,112 @@ export default function MoodCalendar() {
     const dateStr = formatDate(day);
     return moodData[dateStr];
   };
+
+  // Fetch journal and voice entries for mood tracking
+  useEffect(() => {
+    if (!user?.id) return;
+
+    let journalUnsubscribe: (() => void) | null = null;
+    let voiceUnsubscribe: (() => void) | null = null;
+
+    // Fetch journal entries
+    journalUnsubscribe = onSnapshot(
+      query(
+        collection(db, 'journalEntries'),
+        where('userId', '==', user.id),
+        orderBy('createdAt', 'desc')
+      ),
+      (snapshot) => {
+        const journalEntries = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        })) as any[];
+
+        // Fetch voice entries
+        voiceUnsubscribe = onSnapshot(
+          query(
+            collection(db, 'voiceEntries'),
+            where('userId', '==', user.id),
+            orderBy('createdAt', 'desc')
+          ),
+          (voiceSnapshot) => {
+            const voiceEntries = voiceSnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            })) as any[];
+
+            // Process mood data for calendar
+            const processedMoodData: Record<string, { mood: string; intensity: number; hasVoice: boolean }> = {};
+            
+            // Process journal entries
+            journalEntries.forEach((entry: any) => {
+              const date = entry.date || new Date(entry.createdAt?.toDate()).toLocaleDateString();
+              const emotion = entry.emotion;
+              
+              if (emotion) {
+                processedMoodData[date] = {
+                  mood: emotion,
+                  intensity: entry.intensity || 5,
+                  hasVoice: false
+                };
+              }
+            });
+
+            // Process voice entries
+            voiceEntries.forEach((entry: any) => {
+              const date = entry.date || new Date(entry.createdAt?.toDate()).toLocaleDateString();
+              const emotion = entry.emotion;
+              
+              if (emotion) {
+                if (processedMoodData[date]) {
+                  // If date already has an entry, mark it as having voice
+                  processedMoodData[date].hasVoice = true;
+                } else {
+                  // Create new entry for this date
+                  processedMoodData[date] = {
+                    mood: emotion,
+                    intensity: entry.intensity || 5,
+                    hasVoice: true
+                  };
+                }
+              }
+            });
+
+            setMoodData(processedMoodData);
+            setLoading(false);
+          },
+          (error) => {
+            console.error('Error fetching voice entries:', error);
+            setLoading(false);
+          }
+        );
+      },
+      (error) => {
+        console.error('Error fetching journal entries:', error);
+        setLoading(false);
+      }
+    );
+
+    return () => {
+      if (journalUnsubscribe) journalUnsubscribe();
+      if (voiceUnsubscribe) voiceUnsubscribe();
+    };
+  }, [user?.id]);
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl p-8 shadow-lg border border-pink-100">
+        <div className="flex items-center justify-center h-80">
+          <div className="text-center">
+            <div className="w-16 h-16 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <i className="ri-loader-4-line text-4xl text-purple-500 animate-spin"></i>
+            </div>
+            <p className="text-gray-600">Loading your mood calendar...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-2xl p-8 shadow-lg border border-pink-100">
